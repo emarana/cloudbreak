@@ -1,5 +1,27 @@
 package com.sequenceiq.it.cloudbreak;
 
+import static java.lang.Boolean.FALSE;
+
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Set;
+
+import javax.ws.rs.core.Response;
+import javax.ws.rs.core.Response.Status.Family;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
+import org.testng.Assert;
+
 import com.sequenceiq.ambari.client.AmbariClient;
 import com.sequenceiq.cloudbreak.api.endpoint.common.StackEndpoint;
 import com.sequenceiq.cloudbreak.api.endpoint.v1.EventEndpoint;
@@ -15,27 +37,8 @@ import com.sequenceiq.it.IntegrationTestContext;
 import com.sequenceiq.periscope.api.endpoint.v1.HistoryEndpoint;
 import com.sequenceiq.periscope.api.model.AutoscaleClusterHistoryResponse;
 import com.sequenceiq.periscope.client.AutoscaleClient;
+
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
-import org.springframework.util.StringUtils;
-import org.testng.Assert;
-
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.Response.Status.Family;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Set;
-
-import static java.lang.Boolean.FALSE;
 
 @Component
 public class CloudbreakUtil {
@@ -72,6 +75,10 @@ public class CloudbreakUtil {
         waitAndCheckStatuses(cloudbreakClient, stackId, Collections.singletonMap("clusterStatus", desiredStatus));
     }
 
+    public static void waitAndExpectClusterFailure(CloudbreakClient cloudbreakClient, String stackId, String desiredStatus) {
+        waitAndExpectFailure(cloudbreakClient, stackId, Collections.singletonMap("clusterStatus", desiredStatus));
+    }
+
     public static WaitResult waitForStackStatus(CloudbreakClient cloudbreakClient, String stackId, String desiredStatus) {
         return waitForStatuses(cloudbreakClient, stackId, Collections.singletonMap("status", desiredStatus));
     }
@@ -101,6 +108,15 @@ public class CloudbreakUtil {
             if (waitResult == WaitResult.FAILED) {
                 Assert.fail("The stack has failed");
             }
+            if (waitResult == WaitResult.TIMEOUT) {
+                Assert.fail("Timeout happened");
+            }
+        }
+    }
+
+    public static void waitAndExpectFailure(CloudbreakClient cloudbreakClient, String stackId, Map<String, String> desiredStatuses) {
+        for (int i = 0; i < 3; i++) {
+            WaitResult waitResult = waitForStatuses(cloudbreakClient, stackId, desiredStatuses);
             if (waitResult == WaitResult.TIMEOUT) {
                 Assert.fail("Timeout happened");
             }
